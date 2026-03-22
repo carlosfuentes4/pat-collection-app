@@ -4,16 +4,23 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m1
     scripts:
-      - name: Instalar Python y dependencias
+      - name: Instalar dependencias
         script: |
-          brew install python@3.12 || true
           pip3 install "flet[mobile]" pillow "python-barcode[images]" requests
+      - name: Instalar Flutter
+        script: |
+          git clone https://github.com/flutter/flutter.git --depth 1 -b stable ~/flutter
+          export PATH="$PATH:$HOME/flutter/bin"
+          flutter precache --ios
+          flutter doctor
       - name: Build IPA
         script: |
+          export PATH="$PATH:$HOME/flutter/bin"
           flet build ipa \
             --project "PatCollection" \
             --org com.patcollection \
-            --bundle-id com.patcollection.app
+            --bundle-id com.patcollection.app \
+            --yes
     artifacts:
       - build/ipa/*.ipa
     publishing:
