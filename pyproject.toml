@@ -19,7 +19,9 @@ permissions = [
 ]
 [tool.flet.ios]
 info_plist = [
-    "NSPhotoLibraryAddUsageDescription=Guardar etiquetas de productos",
-    "NSPhotoLibraryUsageDescription=Acceso a fotos para guardar etiquetas",
+    "NSPhotoLibraryAddUsageDescription=Pat Collection necesita acceso para guardar etiquetas en tus Fotos",
+    "NSPhotoLibraryUsageDescription=Pat Collection necesita acceso para guardar etiquetas en tus Fotos",
     "NSDocumentsUsageDescription=Guardar etiquetas en Documentos",
+    "UIFileSharingEnabled=true",
+    "LSSupportsOpeningDocumentsInPlace=true",
 ]

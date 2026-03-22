@@ -403,10 +403,24 @@ class MainWindow:
 
                 # Intento 1 — share sheet
                 try:
-                    os.system(f'open "{self._ultimo_png}"')
-                    compartido = True
-                except Exception:
-                    pass
+                    from PIL import Image as PILImage
+                    img_guardar = PILImage.open(self._ultimo_png)
+                    fotos_path = os.path.expanduser("~/Pictures")
+                    os.makedirs(fotos_path, exist_ok=True)
+                    destino = os.path.join(fotos_path, os.path.basename(self._ultimo_png))
+                    img_guardar.save(destino)
+                    self.show_message(
+                        "Imagen guardada en Fotos.\n\n"
+                        "Ábrela desde la app Fotos y "
+                        "compártela por WhatsApp."
+                    )
+                except Exception as ex:
+                    self.show_message(
+                        f"Imagen disponible en:\n\n"
+                        "App Archivos → En mi iPhone → "
+                        "preciospc → Documents → etiquetas\n\n"
+                        "Mantén presionada la imagen → Compartir → WhatsApp."
+                    )
 
                 # Intento 2 — guardar en Fotos
                 if not compartido:
