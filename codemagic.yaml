@@ -21,8 +21,13 @@ workflows:
             --org com.patcollection \
             --bundle-id com.patcollection.app \
             --yes
+          # Mostrar dónde quedó el archivo
+          echo "=== Buscando IPA ==="
+          find . -name "*.ipa" 2>/dev/null
+          find . -name "*.xcarchive" 2>/dev/null
     artifacts:
-      - build/ipa/*.ipa
+      - "**/*.ipa"
+      - "**/*.xcarchive"
     publishing:
       email:
         recipients:
