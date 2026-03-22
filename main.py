@@ -141,7 +141,7 @@ class MainWindow:
                 elevation=4,
             ),
             width=300,
-            height=50,
+            height=60,
         )
 
         self.lbl_precio_usd = ft.Text("—", size=22, weight=ft.FontWeight.BOLD, color="#e94560")
@@ -382,12 +382,10 @@ class MainWindow:
             return
 
         try:
-            # iOS — usa el share sheet nativo (WhatsApp, correo, AirDrop, etc.)
-            if sys.platform == "ios" or sys.platform == "darwin":
-                self.page.launch_url(f"file://{self._ultimo_png}")
+            es_android = "/data/user" in os.path.abspath(__file__) or \
+                        "com.flet" in os.path.abspath(__file__)
 
-            # Android
-            elif "/data/user" in os.path.abspath(__file__) or "com.flet" in os.path.abspath(__file__):
+            if es_android:
                 try:
                     from android.content import Intent
                     from android.net import Uri
@@ -397,9 +395,22 @@ class MainWindow:
                     intent.putExtra(Intent.EXTRA_STREAM, Uri.parse(f"file://{self._ultimo_png}"))
                     android.mActivity.startActivity(Intent.createChooser(intent, "Compartir etiqueta"))
                 except Exception:
-                    subprocess.run(["xdg-open", self._ultimo_png])
+                    pass
 
-            # Windows
+            elif sys.platform == "ios":
+                # Usar objc para el share sheet nativo de iOS
+                try:
+                    import objc
+                    from UIKit import UIActivityViewController, UIApplication
+                    image_url = objc.NSURL.fileURLWithPath_(self._ultimo_png)
+                    vc = UIActivityViewController.alloc().initWithActivityItems_applicationActivities_(
+                        [image_url], None
+                    )
+                    root_vc = UIApplication.sharedApplication().keyWindow().rootViewController()
+                    root_vc.presentViewController_animated_completion_(vc, True, None)
+                except Exception as ex:
+                    self.show_message(f"Error al compartir:\n{ex}")
+
             elif sys.platform == "win32":
                 os.startfile(self._ultimo_png)
 
@@ -407,7 +418,7 @@ class MainWindow:
                 subprocess.run(["xdg-open", self._ultimo_png])
 
         except Exception as ex:
-            self.show_message(f"No se pudo compartir:\n{ex}")
+            self.show_message(f"Error:\n{ex}")
 
     # ─── Diálogo nombre/descripción ───
     def _abrir_dialogo_etiqueta(self, e):
