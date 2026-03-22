@@ -17,6 +17,7 @@ class MainWindow:
         self._precio_hnl = None
         self._costo_usd  = None
         self._costo_hnl  = None
+        self._ultimo_png = None  # ruta de la última etiqueta generada
 
         self.page_setup()
         self.create_component()
@@ -215,6 +216,21 @@ class MainWindow:
             visible=False,
         )
 
+        # ── Botón compartir ──
+        self.btn_compartir = ft.FilledButton(
+            "📤  Compartir Etiqueta",
+            on_click=self._compartir_etiqueta,
+            style=ft.ButtonStyle(
+                bgcolor={"": "#0f3460"},
+                color={"": "#ffffff"},
+                shape=ft.RoundedRectangleBorder(radius=12),
+                elevation=4,
+            ),
+            width=300,
+            height=50,
+            visible=False,
+        )
+
         self.btn_limpiar = ft.TextButton(
             "Limpiar",
             icon=ft.Icons.CLEAR,
@@ -252,7 +268,9 @@ class MainWindow:
             ft.Container(height=4),
             self.card_resultado,
             ft.Container(height=8),
-            ft.Row([self.btn_etiqueta], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Row([self.btn_etiqueta],   alignment=ft.MainAxisAlignment.CENTER),
+            ft.Container(height=6),
+            ft.Row([self.btn_compartir],  alignment=ft.MainAxisAlignment.CENTER),
         )
 
     # ─── Lógica ───
@@ -318,18 +336,18 @@ class MainWindow:
         self.campo_precio_hnl.value   = "—"
         self.card_resultado.visible   = False
         self.btn_etiqueta.visible     = False
+        self.btn_compartir.visible    = False
         self._precio_usd = None
         self._precio_hnl = None
         self._costo_usd  = None
         self._costo_hnl  = None
+        self._ultimo_png = None
         self.page.update()
 
     def _redondear_precio(self, precio: float) -> float:
-        """Redondea al entero más cercano, sin decimales."""
         return float(round(precio))
 
     def _precio_hnl_editado(self, e):
-        """Recalcula ganancia en tiempo real cuando el usuario edita el precio HNL."""
         if self._costo_hnl is None:
             return
         try:
@@ -356,6 +374,40 @@ class MainWindow:
             f"Ganancia:  $ {ganancia_usd:,.2f}  /  L {ganancia_hnl:,.2f}"
         )
         self.page.update()
+
+    # ─── Compartir etiqueta ───
+    def _compartir_etiqueta(self, e):
+        if not self._ultimo_png or not os.path.exists(self._ultimo_png):
+            self.show_message("Primero genera una etiqueta.")
+            return
+
+        try:
+            # iOS — usa el share sheet nativo (WhatsApp, correo, AirDrop, etc.)
+            if sys.platform == "ios" or sys.platform == "darwin":
+                subprocess.run(["open", self._ultimo_png])
+
+            # Android
+            elif "/data/user" in os.path.abspath(__file__) or "com.flet" in os.path.abspath(__file__):
+                try:
+                    from android.content import Intent
+                    from android.net import Uri
+                    import android
+                    intent = Intent(Intent.ACTION_SEND)
+                    intent.setType("image/png")
+                    intent.putExtra(Intent.EXTRA_STREAM, Uri.parse(f"file://{self._ultimo_png}"))
+                    android.mActivity.startActivity(Intent.createChooser(intent, "Compartir etiqueta"))
+                except Exception:
+                    subprocess.run(["xdg-open", self._ultimo_png])
+
+            # Windows
+            elif sys.platform == "win32":
+                os.startfile(self._ultimo_png)
+
+            else:
+                subprocess.run(["xdg-open", self._ultimo_png])
+
+        except Exception as ex:
+            self.show_message(f"No se pudo compartir:\n{ex}")
 
     # ─── Diálogo nombre/descripción ───
     def _abrir_dialogo_etiqueta(self, e):
@@ -444,11 +496,9 @@ class MainWindow:
             )
             return
 
-        # ── Código aleatorio 12 dígitos ──
         codigo_num     = str(random.randint(100_000_000_000, 999_999_999_999))
         codigo_display = f"PC-{codigo_num[:4]}-{codigo_num[4:8]}-{codigo_num[8:]}"
 
-        # ── Generar barcode como imagen temporal ──
         tmp_dir      = tempfile.gettempdir()
         barcode_base = os.path.join(tmp_dir, f"bc_{codigo_num}")
         bc = barcode.get("code128", codigo_num, writer=ImageWriter())
@@ -467,21 +517,16 @@ class MainWindow:
         )
         barcode_png = barcode_base + ".png"
 
-        # ── Dimensiones etiqueta: 900 x 550 px (alta res, 100px = 1cm aprox) ──
         W, H   = 900, 550
         img    = Image.new("RGB", (W, H), color="#1a1a2e")
         draw   = ImageDraw.Draw(img)
 
-        # ── Helpers de fuentes ──
         def get_font(size, bold=False, italic=False):
-            # Buscar primero en assets/ junto al main.py
             try:
                 base_dir = os.path.dirname(os.path.abspath(__file__))
             except Exception:
                 base_dir = ""
-
             assets_dir = os.path.join(base_dir, "assets")
-
             if italic:
                 candidates = [
                     os.path.join(assets_dir, "italic.ttf"),
@@ -500,7 +545,6 @@ class MainWindow:
                     "arial.ttf", "Arial.ttf",
                     "DejaVuSans.ttf",
                 ]
-
             for name in candidates:
                 try:
                     return ImageFont.truetype(name, size)
@@ -512,74 +556,55 @@ class MainWindow:
             bbox = font.getbbox(text)
             return bbox[2] - bbox[0]
 
-        # ── Banda roja superior (más alta para el logo) ──
         HEADER_H = 148
         draw.rectangle([0, 0, W, HEADER_H], fill="#000000")
 
-        # Logo "PAT" rígido  +  "Collection" cursiva — centrados en la banda
         font_pat        = get_font(52, bold=True)
         font_collection = get_font(76, italic=True)
-
         txt_pat        = "PAT"
         txt_collection = "Collection"
-
-        w_pat  = text_width(txt_pat,        font_pat)
+        w_pat  = text_width(txt_pat, font_pat)
         w_col  = text_width(txt_collection, font_collection)
         gap    = 3
         total  = w_pat + gap + w_col
         x_pat  = (W - total) // 2
         x_col  = x_pat + w_pat + gap
-
         y_logo = 40
-        draw.text((x_pat,    y_logo),      txt_pat,        font=font_pat,        fill="white")
-        draw.text((x_col,    y_logo - 12), txt_collection, font=font_collection, fill="white")
+        draw.text((x_pat, y_logo),      txt_pat,        font=font_pat,        fill="white")
+        draw.text((x_col, y_logo - 12), txt_collection, font=font_collection, fill="white")
 
-        # Subtítulo
         font_sub = get_font(20)
         draw.text((W // 2, 118), "Moda & Estilo", font=font_sub, fill="#ffd0d8", anchor="mm")
-
-        # Línea decorativa fina bajo el subtítulo
         lw = 180
         draw.line([(W//2 - lw, 130), (W//2 + lw, 130)], fill="#ffffff44", width=1)
 
-        # ── Nombre del producto ──
-        font_nombre = get_font(28, bold=True)
+        font_nombre  = get_font(28, bold=True)
         nombre_corto = nombre[:40] + ("…" if len(nombre) > 40 else "")
         draw.text((W // 2, 170), nombre_corto, font=font_nombre, fill="#ffffff", anchor="mm")
 
-        # Descripción / talla
         if descripcion:
-            font_desc = get_font(22)
+            font_desc  = get_font(22)
             desc_corta = descripcion[:50] + ("…" if len(descripcion) > 50 else "")
             draw.text((W // 2, 204), desc_corta, font=font_desc, fill="#aaaaaa", anchor="mm")
 
-        # ── Precio único en HNL (centrado) ──
         font_label  = get_font(22, bold=True)
         font_precio = get_font(68, bold=True)
-
         draw.text((W // 2, 238), "PRECIO:", font=font_label, fill="#898989", anchor="mm")
         draw.text((W // 2, 302), f"L {self._precio_hnl:,.2f}", font=font_precio, fill="white", anchor="mm")
 
-        # ── Separador horizontal ──
         draw.line([(30, 338), (W - 30, 338)], fill="#2a2a4a", width=2)
 
-        # ── Pegar código de barras ──
         bc_img = Image.open(barcode_png).convert("RGBA")
-
-        # Fondo blanco para la zona del barcode
         bc_area_w, bc_area_h = 820, 165
         bc_x0 = (W - bc_area_w) // 2
         bc_y0 = 348
         draw.rectangle([bc_x0, bc_y0, bc_x0 + bc_area_w, bc_y0 + bc_area_h], fill="white", outline="#2a2a4a", width=1)
-
         bc_resized = bc_img.resize((bc_area_w - 20, bc_area_h - 20), Image.LANCZOS)
         img.paste(bc_resized, (bc_x0 + 10, bc_y0 + 5), bc_resized)
 
-        # ── Código legible ──
         font_cod = get_font(18)
         draw.text((W // 2, 528), codigo_display, font=font_cod, fill="#888888", anchor="mm")
 
-        # ── Guardar ──  ← ÚNICA SECCIÓN CORREGIDA
         etiquetas_dir = self._get_directorio_etiquetas()
         nombre_archivo = "".join(c if c.isalnum() or c in " _-" else "_" for c in nombre).strip()
         nombre_archivo = nombre_archivo.replace(" ", "_")[:40]
@@ -587,48 +612,42 @@ class MainWindow:
 
         img.save(png_path, "PNG", dpi=(300, 300))
 
-        # Abrir automáticamente
+        # Guardar ruta para compartir después
+        self._ultimo_png = png_path
+
+        # Mostrar botón compartir
+        self.btn_compartir.visible = True
+        self.page.update()
+
+        # Abrir automáticamente en escritorio
         try:
             if sys.platform == "win32":
                 os.startfile(png_path)
             elif sys.platform == "darwin":
                 subprocess.run(["open", png_path])
-            elif sys.platform == "android":
-                from android.content import Intent
-                from android.net import Uri
-                import android
-                intent = Intent(Intent.ACTION_VIEW)
-                intent.setDataAndType(Uri.parse(f"file://{png_path}"), "image/png")
-                android.mActivity.startActivity(intent)
-            else:
-                subprocess.run(["xdg-open", png_path])
         except Exception:
             pass
 
         self.show_message(
-            f"Etiqueta guardada como imagen!\n\n"
+            f"Etiqueta generada!\n\n"
             f"Producto: {nombre}\n"
             f"Codigo: {codigo_display}\n\n"
-            f"Ruta: {png_path}"
+            f"Usa el botón Compartir para enviarla por WhatsApp."
         )
 
     def _get_directorio_etiquetas(self):
         try:
-            # En Android con Flet, sys.platform es "linux"
-            # Se detecta Android buscando la ruta típica de Flet
             es_android = "/data/user" in os.path.abspath(__file__) or \
                         "com.flet" in os.path.abspath(__file__)
-
             if es_android:
                 base = "/storage/emulated/0/DCIM/PatCollection"
             elif sys.platform == "ios":
                 base = os.path.expanduser("~/Documents/etiquetas")
             else:
                 base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "etiquetas")
-
             os.makedirs(base, exist_ok=True)
             return base
-        except Exception as e:
+        except Exception:
             fallback = os.path.join(tempfile.gettempdir(), "etiquetas")
             os.makedirs(fallback, exist_ok=True)
             return fallback
