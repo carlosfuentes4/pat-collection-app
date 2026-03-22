@@ -21,17 +21,34 @@ workflows:
             --org com.patcollection \
             --bundle-id com.patcollection.app \
             --permissions photo_library \
-            --info-plist "NSPhotoLibraryAddUsageDescription=Pat Collection necesita acceso para guardar etiquetas en tus Fotos" \
-            --info-plist "NSPhotoLibraryUsageDescription=Pat Collection necesita acceso para guardar etiquetas en tus Fotos" \
-            --info-plist "UIFileSharingEnabled=true" \
-            --info-plist "LSSupportsOpeningDocumentsInPlace=true" \
             --yes
-      - name: Convertir xcarchive a ipa
+      - name: Inyectar permisos y convertir a ipa
         script: |
           XCARCHIVE=$(find . -name "*.xcarchive" | head -1)
           echo "xcarchive encontrado: $XCARCHIVE"
+          APP=$(find "$XCARCHIVE/Products/Applications/" -name "*.app" | head -1)
+          echo "app encontrada: $APP"
+
+          # Inyectar permisos en Info.plist
+          /usr/libexec/PlistBuddy -c "Add :UIFileSharingEnabled bool true" "$APP/Info.plist" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :UIFileSharingEnabled true" "$APP/Info.plist"
+
+          /usr/libexec/PlistBuddy -c "Add :LSSupportsOpeningDocumentsInPlace bool true" "$APP/Info.plist" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :LSSupportsOpeningDocumentsInPlace true" "$APP/Info.plist"
+
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string 'Pat Collection necesita acceso para guardar etiquetas'" "$APP/Info.plist" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryAddUsageDescription 'Pat Collection necesita acceso para guardar etiquetas'" "$APP/Info.plist"
+
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'Pat Collection necesita acceso para guardar etiquetas'" "$APP/Info.plist" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryUsageDescription 'Pat Collection necesita acceso para guardar etiquetas'" "$APP/Info.plist"
+
+          echo "=== Verificando Info.plist ==="
+          /usr/libexec/PlistBuddy -c "Print :UIFileSharingEnabled" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :NSPhotoLibraryAddUsageDescription" "$APP/Info.plist"
+
+          # Empaquetar
           mkdir -p build/ipa/Payload
-          cp -r "$XCARCHIVE/Products/Applications/"*.app build/ipa/Payload/
+          cp -r "$APP" build/ipa/Payload/
           cd build/ipa
           zip -r PatCollection.ipa Payload
           echo "=== IPA generado ==="
