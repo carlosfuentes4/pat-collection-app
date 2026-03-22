@@ -90,7 +90,7 @@ class MainWindow:
         self.campo_costo = ft.TextField(
             label="Costo del producto",
             prefix=self.prefijo_costo,
-            keyboard_type=ft.KeyboardType.NUMBER,
+            keyboard_type=ft.KeyboardType.TEXT,
             border_color="#e94560",
             focused_border_color="#ff6b6b",
             color="#ffffff",
@@ -384,7 +384,7 @@ class MainWindow:
         try:
             # iOS — usa el share sheet nativo (WhatsApp, correo, AirDrop, etc.)
             if sys.platform == "ios" or sys.platform == "darwin":
-                subprocess.run(["open", self._ultimo_png])
+                self.page.launch_url(f"file://{self._ultimo_png}")
 
             # Android
             elif "/data/user" in os.path.abspath(__file__) or "com.flet" in os.path.abspath(__file__):
