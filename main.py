@@ -381,10 +381,11 @@ class MainWindow:
             self.show_message("Primero genera una etiqueta.")
             return
 
-        try:
-            es_android = "/data/user" in os.path.abspath(__file__) or \
-                        "com.flet" in os.path.abspath(__file__)
+        ruta = os.path.abspath(__file__)
+        es_android = "/data/user" in ruta or "com.flet" in ruta
+        es_ios     = "/private/var/mobile" in ruta or "/var/mobile" in ruta
 
+        try:
             if es_android:
                 try:
                     from android.content import Intent
@@ -397,25 +398,24 @@ class MainWindow:
                 except Exception:
                     pass
 
-            elif sys.platform == "ios":
+            elif es_ios:
                 compartido = False
-    
-                # Intento 1 — share sheet nativo
+
+                # Intento 1 — share sheet
                 try:
                     os.system(f'open "{self._ultimo_png}"')
                     compartido = True
                 except Exception:
                     pass
 
-                # Intento 2 — guardar en ~/Pictures (app Fotos)
+                # Intento 2 — guardar en Fotos
                 if not compartido:
                     try:
                         from PIL import Image as PILImage
                         img_guardar = PILImage.open(self._ultimo_png)
                         fotos_path = os.path.expanduser("~/Pictures")
                         os.makedirs(fotos_path, exist_ok=True)
-                        nombre_foto = os.path.basename(self._ultimo_png)
-                        destino = os.path.join(fotos_path, nombre_foto)
+                        destino = os.path.join(fotos_path, os.path.basename(self._ultimo_png))
                         img_guardar.save(destino)
                         self.show_message(
                             "Imagen guardada en Fotos.\n\n"
@@ -426,14 +426,11 @@ class MainWindow:
                     except Exception:
                         pass
 
-                # Último recurso — indicar ruta manual
                 if not compartido:
                     self.show_message(
-                        "Abre la app Archivos en tu iPhone:\n\n"
-                        "En mi iPhone → preciospc → "
-                        "Documents → etiquetas\n\n"
-                        "Selecciona la imagen y compártela "
-                        "por WhatsApp desde ahí."
+                        f"Imagen guardada en:\n{self._ultimo_png}\n\n"
+                        "Abre la app Archivos → En mi iPhone → "
+                        "preciospc → Documents → etiquetas"
                     )
 
             elif sys.platform == "win32":
@@ -673,21 +670,23 @@ class MainWindow:
 
     def _get_directorio_etiquetas(self):
         try:
-            es_android = "/data/user" in os.path.abspath(__file__) or \
-                        "com.flet" in os.path.abspath(__file__)
+            ruta = os.path.abspath(__file__)
+            es_android = "/data/user" in ruta or "com.flet" in ruta
+            es_ios     = "/private/var/mobile" in ruta or "/var/mobile" in ruta
+
             if es_android:
                 base = "/storage/emulated/0/DCIM/PatCollection"
-            elif sys.platform == "ios":
+            elif es_ios:
                 base = os.path.expanduser("~/Documents/etiquetas")
             else:
-                base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "etiquetas")
+                base = os.path.join(os.path.dirname(ruta), "etiquetas")
+
             os.makedirs(base, exist_ok=True)
             return base
         except Exception:
             fallback = os.path.join(tempfile.gettempdir(), "etiquetas")
             os.makedirs(fallback, exist_ok=True)
             return fallback
-
 
 def main(page: ft.Page):
     MainWindow(page)
