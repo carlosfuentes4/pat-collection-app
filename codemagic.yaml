@@ -3,14 +3,20 @@ workflows:
     name: Pat Collection iOS
     max_build_duration: 60
     instance_type: mac_mini_m1
-    environment:
-      python: 3.12
     scripts:
-      - name: Instalar dependencias
+      - name: Instalar Python y dependencias
         script: |
-          pip install flet[mobile] pillow python-barcode[images] requests
+          brew install python@3.12 || true
+          pip3 install "flet[mobile]" pillow "python-barcode[images]" requests
       - name: Build IPA
         script: |
-          flet build ipa --project PatCollection --org com.patcollection
+          flet build ipa \
+            --project "PatCollection" \
+            --org com.patcollection \
+            --bundle-id com.patcollection.app
     artifacts:
       - build/ipa/*.ipa
+    publishing:
+      email:
+        recipients:
+          - carlosfuent0059@gmail.com
