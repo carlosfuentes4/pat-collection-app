@@ -398,18 +398,43 @@ class MainWindow:
                     pass
 
             elif sys.platform == "ios":
-                # Usar objc para el share sheet nativo de iOS
+                compartido = False
+    
+                # Intento 1 — share sheet nativo
                 try:
-                    import objc
-                    from UIKit import UIActivityViewController, UIApplication
-                    image_url = objc.NSURL.fileURLWithPath_(self._ultimo_png)
-                    vc = UIActivityViewController.alloc().initWithActivityItems_applicationActivities_(
-                        [image_url], None
+                    os.system(f'open "{self._ultimo_png}"')
+                    compartido = True
+                except Exception:
+                    pass
+
+                # Intento 2 — guardar en ~/Pictures (app Fotos)
+                if not compartido:
+                    try:
+                        from PIL import Image as PILImage
+                        img_guardar = PILImage.open(self._ultimo_png)
+                        fotos_path = os.path.expanduser("~/Pictures")
+                        os.makedirs(fotos_path, exist_ok=True)
+                        nombre_foto = os.path.basename(self._ultimo_png)
+                        destino = os.path.join(fotos_path, nombre_foto)
+                        img_guardar.save(destino)
+                        self.show_message(
+                            "Imagen guardada en Fotos.\n\n"
+                            "Ábrela desde la app Fotos y "
+                            "compártela por WhatsApp."
+                        )
+                        compartido = True
+                    except Exception:
+                        pass
+
+                # Último recurso — indicar ruta manual
+                if not compartido:
+                    self.show_message(
+                        "Abre la app Archivos en tu iPhone:\n\n"
+                        "En mi iPhone → preciospc → "
+                        "Documents → etiquetas\n\n"
+                        "Selecciona la imagen y compártela "
+                        "por WhatsApp desde ahí."
                     )
-                    root_vc = UIApplication.sharedApplication().keyWindow().rootViewController()
-                    root_vc.presentViewController_animated_completion_(vc, True, None)
-                except Exception as ex:
-                    self.show_message(f"Error al compartir:\n{ex}")
 
             elif sys.platform == "win32":
                 os.startfile(self._ultimo_png)
