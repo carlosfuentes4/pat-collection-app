@@ -1,7 +1,7 @@
 [project]
 name = "preciospc"
 version = "0.1.0"
-description = "Add your description here"
+description = "app para precios y etiquetas"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -21,4 +21,5 @@ permissions = [
 info_plist = [
     "NSPhotoLibraryAddUsageDescription=Guardar etiquetas de productos",
     "NSPhotoLibraryUsageDescription=Acceso a fotos para guardar etiquetas",
+    "NSDocumentsUsageDescription=Guardar etiquetas en Documentos",
 ]
