@@ -1,0 +1,16 @@
+workflows:
+  ios-build:
+    name: Pat Collection iOS
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    environment:
+      python: 3.12
+    scripts:
+      - name: Instalar dependencias
+        script: |
+          pip install flet[mobile] pillow python-barcode[images] requests
+      - name: Build IPA
+        script: |
+          flet build ipa --project PatCollection --org com.patcollection
+    artifacts:
+      - build/ipa/*.ipa
