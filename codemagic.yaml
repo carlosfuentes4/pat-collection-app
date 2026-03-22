@@ -20,6 +20,9 @@ workflows:
             --project "PatCollection" \
             --org com.patcollection \
             --bundle-id com.patcollection.app \
+            --info-plist "NSPhotoLibraryAddUsageDescription=Pat Collection necesita acceso para guardar etiquetas en tus Fotos" \
+            --info-plist "NSPhotoLibraryUsageDescription=Pat Collection necesita acceso para guardar etiquetas en tus Fotos" \
+            --info-plist "NSDocumentsUsageDescription=Guardar etiquetas en Documentos" \
             --yes
       - name: Convertir xcarchive a ipa
         script: |
