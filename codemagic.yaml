@@ -21,13 +21,18 @@ workflows:
             --org com.patcollection \
             --bundle-id com.patcollection.app \
             --yes
-          # Mostrar dónde quedó el archivo
-          echo "=== Buscando IPA ==="
-          find . -name "*.ipa" 2>/dev/null
-          find . -name "*.xcarchive" 2>/dev/null
+      - name: Convertir xcarchive a ipa
+        script: |
+          XCARCHIVE=$(find . -name "*.xcarchive" | head -1)
+          echo "xcarchive encontrado: $XCARCHIVE"
+          mkdir -p build/ipa/Payload
+          cp -r "$XCARCHIVE/Products/Applications/"*.app build/ipa/Payload/
+          cd build/ipa
+          zip -r PatCollection.ipa Payload
+          echo "=== IPA generado ==="
+          find . -name "*.ipa"
     artifacts:
       - "**/*.ipa"
-      - "**/*.xcarchive"
     publishing:
       email:
         recipients:
